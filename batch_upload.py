@@ -1,4 +1,3 @@
-import json
 import os
 import re
 from typing import Optional
@@ -250,7 +249,7 @@ def main():
 
     except (RetryError, InternalServerError) as e:
         print(f"An error occurred: {str(e)}")
-        
+
     except Exception as e:
         print(f"Unexpected error occurred: {str(e)}")
 
