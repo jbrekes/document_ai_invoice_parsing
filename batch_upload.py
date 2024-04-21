@@ -12,6 +12,17 @@ from google.oauth2 import service_account # type: ignore
 # Load environment variables from .env file
 load_dotenv()
 
+# Constants
+PROJECT_ID = os.getenv("project_id")
+LOCATION = os.getenv("location")
+PROCESSOR_ID = os.getenv("processor_id")
+CREDENTIALS_PATH = os.getenv("credentials_path")
+DATASET_ID = os.getenv("dataset_id")
+TABLE_ID = os.getenv("table_id")
+GCS_INPUT_PREFIX = os.getenv("gcs_input_prefix")
+GCS_OUTPUT_URI = os.getenv("gcs_output_uri")
+MIME_TYPE = 'application/pdf'
+
 # Get environment variables
 project_id = os.getenv("project_id")
 location = os.getenv("location")
@@ -19,21 +30,19 @@ processor_id = os.getenv("processor_id")
 credentials_path = os.getenv("credentials_path")
 dataset_id = os.getenv("dataset_id")
 table_id = os.getenv("table_id")
-file_path = os.getenv("file_path")
 gcs_input_prefix = os.getenv("gcs_input_prefix")
 gcs_output_uri = os.getenv("gcs_output_uri")
 
 mime_type = 'application/pdf'
 
 # Explicitly provide service account credentials to the client library
-credentials = service_account.Credentials.from_service_account_file(credentials_path)
+credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
 
 def batch_process_documents(
     project_id: str,
     location: str,
     processor_id: str,
     gcs_output_uri: str,
-    processor_version_id: Optional[str] = None,
     gcs_input_uri: Optional[str] = None,
     input_mime_type: Optional[str] = None,
     gcs_input_prefix: Optional[str] = None,
@@ -42,8 +51,7 @@ def batch_process_documents(
 
 ) -> Operation:
     """
-    Constructs a request to process a document using the Document AI
-    Asynchronous API.
+    Constructs a request to process a document using the Document AI Asynchronous API.
     """
     # You must set the api_endpoint if you use a location other than 'us', e.g.:
     opts = {}
@@ -53,14 +61,8 @@ def batch_process_documents(
     # Instantiates a client
     documentai_client = documentai.DocumentProcessorServiceClient(credentials=credentials, client_options=opts)
 
-    if processor_version_id:
-        # projects/{project_id}/locations/{location}/processors/{processor_id}/processorVersions/{processor_version_id}
-        resource_name = documentai_client.processor_version_path(
-            project_id, location, processor_id, processor_version_id
-        )
-    else:
-        # projects/{project_id}/locations/{location}/processors/{processor_id}
-        resource_name = documentai_client.processor_path(project_id, location, processor_id)
+    # projects/{project_id}/locations/{location}/processors/{processor_id}
+    resource_name = documentai_client.processor_path(project_id, location, processor_id)
 
     # Specify specific GCS URIs to process individual documents, or a GCS URI Prefix to process an entire directory
     if gcs_input_uri:
@@ -211,36 +213,46 @@ def load_to_bigquery(invoice_list):
         print("Errors occurred while inserting data:", errors)
 
 def main():
+    """
+    Main function to orchestrate the document processing workflow.
+    """
+    try:
+        operation = batch_process_documents(
+            project_id=project_id,
+            location=location,
+            processor_id=processor_id,
+            gcs_input_prefix=gcs_input_prefix,
+            input_mime_type=mime_type,
+            gcs_output_uri=gcs_output_uri,
+        )
 
-    operation = batch_process_documents(
-        project_id=project_id,
-        location=location,
-        processor_id=processor_id,
-        gcs_input_prefix=gcs_input_prefix,
-        input_mime_type=mime_type,
-        gcs_output_uri=gcs_output_uri,
-    )
+        operation_name = operation.operation.name
 
-    operation_name = operation.operation.name
+        # Continually polls the operation until it is complete.
+        print(f"Waiting for operation {operation_name} to complete...")
+        result = operation.result(timeout=300)
 
-    # Continually polls the operation until it is complete.
-    print(f"Waiting for operation {operation_name} to complete...")
-    result = operation.result(timeout=300)
+        print("Document processing complete.")
 
-    print("Document processing complete.")
+        # Get the Document Objects from the Output Bucket
+        document_list = get_documents_from_gcs(
+            gcs_output_uri=gcs_output_uri, operation_name=operation_name
+        )
 
-    # Get the Document Objects from the Output Bucket
-    document_list = get_documents_from_gcs(
-        gcs_output_uri=gcs_output_uri, operation_name=operation_name
-    )
+        process_docs_data = []
 
-    process_docs_data = []
+        for document in document_list:
+            data = extract_data(document)
+            process_docs_data.append(data)
+        
+        # Insert invoice data into the BigQuery table
+        load_to_bigquery(process_docs_data)
 
-    for document in document_list:
-        data = extract_data(document)
-        process_docs_data.append(data)
-    
-    # Insert invoice data into the BigQuery table
-    load_to_bigquery(process_docs_data)
+    except (RetryError, InternalServerError) as e:
+        print(f"An error occurred: {str(e)}")
+        
+    except Exception as e:
+        print(f"Unexpected error occurred: {str(e)}")
 
-main()
+if __name__ == "__main__":
+    main()
