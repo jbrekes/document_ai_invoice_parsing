@@ -11,17 +11,6 @@ from google.oauth2 import service_account # type: ignore
 # Load environment variables from .env file
 load_dotenv()
 
-# Constants
-PROJECT_ID = os.getenv("project_id")
-LOCATION = os.getenv("location")
-PROCESSOR_ID = os.getenv("processor_id")
-CREDENTIALS_PATH = os.getenv("credentials_path")
-DATASET_ID = os.getenv("dataset_id")
-TABLE_ID = os.getenv("table_id")
-GCS_INPUT_PREFIX = os.getenv("gcs_input_prefix")
-GCS_OUTPUT_URI = os.getenv("gcs_output_uri")
-MIME_TYPE = 'application/pdf'
-
 # Get environment variables
 project_id = os.getenv("project_id")
 location = os.getenv("location")
@@ -35,7 +24,7 @@ gcs_output_uri = os.getenv("gcs_output_uri")
 mime_type = 'application/pdf'
 
 # Explicitly provide service account credentials to the client library
-credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
+credentials = service_account.Credentials.from_service_account_file(credentials_path)
 
 def batch_process_documents(
     project_id: str,
