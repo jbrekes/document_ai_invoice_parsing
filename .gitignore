@@ -1,0 +1,5 @@
+# Ignore .env file
+.env
+
+# Ignore specific JSON file
+dd-sandbox-402603-3cf94db4c939.json
