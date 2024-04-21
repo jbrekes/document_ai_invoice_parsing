@@ -55,6 +55,10 @@ This project aims to create a system that automates the extraction of informatio
 - `gcs_input_prefix`: Google Cloud Storage prefix for input documents.
 - `gcs_output_uri`: Google Cloud Storage URI for output documents.
 
+You will need to create and configure a parser in Document AI. You can use the invoice parser provided by Google as an example.
+
+You will also need a json file with the data of the Google Service Account credentials you want to use.
+
 ## Conclusion
 
 The Invoice Parsing System provides a robust and scalable solution for automating the extraction of structured data from invoices and storing it in a centralized data warehouse. It leverages the capabilities of Google Document AI and BigQuery, offering flexibility in batch processing or individual document parsing as per the user's requirements.
